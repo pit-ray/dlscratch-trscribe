@@ -1,7 +1,6 @@
 import numpy as np
 
-from .function import Function
-from .utils import as_array
+from d0 import Function
 
 
 class Square(Function):
@@ -30,3 +29,17 @@ class Exp(Function):
 
 def exp(x):
     return Exp()(x)
+
+
+class Sin(Function):
+    def forward(self, x):
+        y = np.sin(x)
+        return y
+
+    def backward(self, gy):
+        x = self.inputs[0].data
+        return gy * np.cos(x)
+
+
+def sin(x):
+    return Sin()(x)
