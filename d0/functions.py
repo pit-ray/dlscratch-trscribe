@@ -8,7 +8,7 @@ class Square(Function):
         return x ** 2
 
     def backward(self, gy):
-        x = self.inputs[0].data
+        x = self.inputs[0]
         gx = 2 * x * gy
         return gx
 
@@ -22,8 +22,8 @@ class Exp(Function):
         return np.exp(x)
 
     def backward(self, gy):
-        x = self.inputs[0].data
-        gx = np.exp(x) * gy
+        x = self.inputs[0]
+        gx = exp(x) * gy
         return gx
 
 
