@@ -64,25 +64,6 @@ class Variable:
         return 'variable({})'.format(
             str(self.data).replace('\n', '\n' + ' ' * 9))
 
-    def reshape(self, *shape):
-        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
-            shape = shape[0]
-        return d0.functions.reshape(self, shape)
-
-    def transpose(self, *axes):
-        if len(axes) == 0:
-            axes = None
-        elif len(axes) == 1:
-            if isinstance(axes[0], (tuple, list)):
-                axes = axes[0]
-            elif axes[0] is None:
-                axes = None
-        return d0.functions.transpose(self, axes)
-
-    @property
-    def T(self):
-        return d0.functions.transpose(self)
-
     def set_creator(self, func):
         self.creator = func
         self.generation = func.generation + 1
@@ -133,6 +114,28 @@ class Variable:
                         for y in f.outputs:
                             y().grad = None  # Remove unused grad
 
+    def reshape(self, *shape):
+        if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
+            shape = shape[0]
+        return d0.functions.reshape(self, shape)
+
+    def transpose(self, *axes):
+        if len(axes) == 0:
+            axes = None
+        elif len(axes) == 1:
+            if isinstance(axes[0], (tuple, list)):
+                axes = axes[0]
+            elif axes[0] is None:
+                axes = None
+        return d0.functions.transpose(self, axes)
+
+    @property
+    def T(self):
+        return d0.functions.transpose(self)
+
+    def sum(self, axis=None, keepdims=False):
+        return d0.functions.sum(self, axis, keepdims)
+
 
 def as_array(x):
     if np.isscalar(x):
@@ -176,11 +179,18 @@ class Function:
 
 class Add(Function):
     def forward(self, x0, x1):
+        self.x_shapes = (x0.shape, x1.shape)
         y = x0 + x1
         return y
 
     def backward(self, gy):
-        return gy, gy
+        gx0, gx1 = gy, gy
+
+        if self.x_shapes[0] != self.x_shapes[1]:
+            gx0 = d0.functions.sum_to(gx0, self.x_shapes[0])
+            gx1 = d0.functions.sum_to(gx1, self.x_shapes[1])
+
+        return gx0, gx1
 
 
 def add(x0, x1):
