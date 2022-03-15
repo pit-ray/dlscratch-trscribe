@@ -1,6 +1,10 @@
 import numpy as np
 
-from d0 import Function, as_variable
+from d0 import \
+        Function, \
+        Variable, \
+        as_variable, \
+        as_array
 
 
 class Square(Function):
@@ -316,6 +320,22 @@ def sigmoid_simple(x):
     return y
 
 
+class ReLU(Function):
+    def forward(self, x):
+        y = np.maximum(x, 0.0)
+        return y
+
+    def backward(self, gy):
+        x, = self.inputs
+        mask = x.data > 0
+        gx = gy * mask
+        return gx
+
+
+def relu(x):
+    return ReLU()(x)
+
+
 class GetItem(Function):
     def __init__(self, slices):
         self.slices = slices
@@ -439,3 +459,11 @@ class Clip(Function):
 
 def clip(x, x_min, x_max):
     return Clip(x_min, x_max)(x)
+
+
+def accuracy(y, t):
+    y, t = as_variable(y), as_variable(t)
+
+    pred = y.data.argmax(axis=1).reshape(t.shape)
+    result = as_array((pred == t.data).mean())
+    return Variable(result)

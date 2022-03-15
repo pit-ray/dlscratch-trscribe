@@ -19,5 +19,6 @@ else:
     from d0.core import setup_variable
     from d0.layers import Layer
     from d0.models import Model
+    from d0.dataloaders import DataLoader
 
 setup_variable()
