@@ -31,6 +31,21 @@ def exp(x):
     return Exp()(x)
 
 
+class Log(Function):
+    def forward(self, x):
+        y = np.log(x)
+        return y
+
+    def backward(self, gy):
+        x, = self.inputs
+        gx = gy / x
+        return gx
+
+
+def log(x):
+    return Log()(x)
+
+
 class Sin(Function):
     def forward(self, x):
         y = np.sin(x)
@@ -299,3 +314,128 @@ def sigmoid_simple(x):
     x = as_variable(x)
     y = 1 / (1 + exp(-x))
     return y
+
+
+class GetItem(Function):
+    def __init__(self, slices):
+        self.slices = slices
+
+    def forward(self, x):
+        y = x[self.slices]
+        return y
+
+    def backward(self, gy):
+        x, = self.inputs
+        return get_item_grad(gy, self.slices, x.shape)
+
+
+def get_item(x, slices):
+    return GetItem(slices)(x)
+
+
+class GetItemGrad(Function):
+    def __init__(self, slices, in_shape):
+        self.slices = slices
+        self.in_shape = in_shape
+
+    def forward(self, gy):
+        gx = np.zeros(self.in_shape)
+        np.add.at(gx, self.slices, gy)
+        return gx
+
+    def backward(self, ggx):
+        return get_item(ggx, self.slices)
+
+
+def get_item_grad(x, slices, in_shape):
+    return GetItemGrad(slices, in_shape)(x)
+
+
+class Softmax(Function):
+    def __init__(self, axis=1):
+        self.axis = axis
+
+    def forward(self, x):
+        y = np.exp(x - x.max(axis=self.axis, keepdims=True))
+        return y / y.sum(axis=self.axis, keepdims=True)
+
+    def backward(self, gy):
+        y = self.outputs[0]()
+        gt = y * gy
+        gx = gt - y * gt.sum(axis=self.axis, keepdims=True)
+        return gx
+
+
+def softmax(x, axis=1):
+    return Softmax(axis)(x)
+
+
+def softmax_simple(x, axis=1):
+    x = as_variable(x)
+    y = exp(x)
+    return y / sum(y, axis=axis, keepdims=True)
+
+
+class SoftmaxCrossEntropy(Function):
+    def forward(self, x, t):
+        N = x.shape[0]
+
+        max_v = x.max(axis=1, keepdims=True)
+
+        diff = x - max_v
+        s = np.exp(diff).sum(axis=1, keepdims=True)
+        log_p = diff - np.log(s)
+
+        t_log_p = log_p[np.arange(N), t.ravel()]
+        y = -t_log_p.sum() / np.float32(N)
+        return y
+
+    def backward(self, gy):
+        x, t = self.inputs
+        N, class_num = x.shape
+
+        y = softmax(x)
+        t_onehot = np.eye(class_num, dtype=t.dtype)[t.data]
+        gx = (y - t_onehot) * gy / N
+        return gx
+
+
+def softmax_cross_entropy(x, t):
+    return SoftmaxCrossEntropy()(x, t)
+
+
+def softmax_cross_entropy_simple(x, t):
+    x, t = as_variable(x), as_variable(t)
+
+    N = x.shape[0]
+
+    p = softmax(x)
+    p = clip(p, 1e-15, 1.0)
+    log_p = log(p)
+    tlog_p = log_p[np.arange(N), t.data]
+    y = -1 * sum(tlog_p) / N
+
+    return y
+
+
+class Clip(Function):
+    def __init__(self, x_min, x_max):
+        self.x_min = x_min
+        self.x_max = x_max
+
+    def forward(self, x):
+        y = np.clip(x, self.x_min, self.x_max)
+        return y
+
+    def backward(self, gy):
+        # This forward graph is equal to
+        # clip(x) = (x * mask) + [x_min or x_max] * (1 - mask)
+        # clip'(x) = gy * mask
+        x, = self.inputs
+        mask = (x.data >= self.x_min) * (x.data <= self.x_max)
+        gx = gy * mask
+        return gx
+
+
+def clip(x, x_min, x_max):
+    return Clip(x_min, x_max)(x)
