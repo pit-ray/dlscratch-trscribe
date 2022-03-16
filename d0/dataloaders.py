@@ -1,14 +1,21 @@
 import math
 import numpy as np
+from d0 import cuda
 
 
 class DataLoader:
-    def __init__(self, dataset, batch_size, shuffle=True):
+    def __init__(
+            self,
+            dataset,
+            batch_size,
+            shuffle=True,
+            gpu=False):
         self.dataset = dataset
         self.batch_size = batch_size
         self.shuffle = shuffle
         self.data_size = len(dataset)
         self.max_iter = math.ceil(self.data_size / batch_size)
+        self.gpu = gpu
 
         self.reset()
 
@@ -33,8 +40,9 @@ class DataLoader:
 
         batch = [self.dataset[i] for i in batch_index]
 
-        x = np.array([example[0] for example in batch])
-        t = np.array([example[1] for example in batch])
+        xp = cuda.cupy if self.gpu else np
+        x = xp.array([example[0] for example in batch])
+        t = xp.array([example[1] for example in batch])
 
         self.iteration += 1
 
@@ -42,3 +50,9 @@ class DataLoader:
 
     def next(self):
         return self.__next__()
+
+    def to_cpu(self):
+        self.gpu = False
+
+    def to_gpu(self):
+        self.gpu = True

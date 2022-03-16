@@ -3,6 +3,7 @@ import numpy as np
 
 from d0.core import Parameter
 from d0 import functions as F
+from d0 import cuda
 
 
 class Layer:
@@ -42,6 +43,14 @@ class Layer:
         for param in self.params():
             param.cleargrad()
 
+    def to_cpu(self):
+        for param in self.params():
+            param.to_cpu()
+
+    def to_gpu(self):
+        for param in self.params():
+            param.to_gpu()
+
 
 class Linear(Layer):
     def __init__(
@@ -66,14 +75,14 @@ class Linear(Layer):
         else:
             self.b = Parameter(np.zeros(out_size, dtype=dtype), name='b')
 
-    def _init_W(self):
-        base = np.random.randn(self.in_size, self.out_size).astype(self.dtype)
-        self.W.data = np.sqrt(1 / self.in_size) * base
+    def _init_W(self, xp=np):
+        base = xp.random.randn(self.in_size, self.out_size).astype(self.dtype)
+        self.W.data = xp.sqrt(1 / self.in_size) * base
 
     def forward(self, x):
         if self.W.data is None:
             self.in_size = x.shape[1]
-            self._init_W()
+            self._init_W(cuda.get_array_module(x))
 
         y = F.linear(x, self.W, self.b)
         return y
