@@ -38,7 +38,11 @@ def t1():
     plt.show()
 
 
-def train(max_epoch=5, batch_size=100, hidden_size=1000):
+def train(
+        max_epoch=5,
+        batch_size=100,
+        hidden_size=1000,
+        model_path=os.path.join('.dezero', 'my_mlp.npz')):
     train_set = datasets.MNIST(train=True, transform=preprocess)
     test_set = datasets.MNIST(train=False, transform=preprocess)
 
@@ -47,6 +51,10 @@ def train(max_epoch=5, batch_size=100, hidden_size=1000):
 
     model = MLP((hidden_size, hidden_size, 10), activation=F.relu)
     optimizer = optimizers.SGD().setup(model)
+
+    if os.path.exists(model_path):
+        print('Load weight: ', model_path)
+        model.load_weights(model_path)
 
     if cuda.gpu_enable:
         print('Use GPU')
@@ -89,5 +97,7 @@ def train(max_epoch=5, batch_size=100, hidden_size=1000):
         print('test loss: {:.4f}, accuracy: {:.4f}'.format(
             np.array(losses).mean(), np.array(accs).mean()))
 
+    model.save_weights(model_path)
 
-train()
+
+train(max_epoch=10, batch_size=100)

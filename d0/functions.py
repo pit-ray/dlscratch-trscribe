@@ -1,5 +1,6 @@
 import numpy as np
 
+import d0
 from d0 import \
         Function, \
         Variable, \
@@ -485,3 +486,18 @@ def accuracy(y, t):
     pred = y.data.argmax(axis=1).reshape(t.shape)
     result = as_array((pred == t.data).mean())
     return Variable(result)
+
+
+def dropout(x, drop_ratio=0.5):
+    x = as_variable(x)
+    if d0.Config.train:
+        xp = cuda.get_array_module(x)
+        mask = xp.random.rand(*x.shape) > drop_ratio
+        scale = 1.0 - drop_ratio
+        y = x * mask / scale
+        return y
+    return x
+
+
+from d0.im2col import im2col
+from d0.conv import conv2d, max_pool2d
