@@ -56,7 +56,7 @@ class Layer:
     def _flatten_params(self, params_dict, parent_key=''):
         for name in self._params:
             obj = getattr(self, name)
-            key = '{}.{}'.format(parent_key, name) if parent_key else name
+            key = '{}/{}'.format(parent_key, name) if parent_key else name
 
             if isinstance(obj, Layer):
                 obj._flatten_params(params_dict, key)
@@ -167,3 +167,73 @@ class Conv2d(Layer):
             self._init_W(xp)
 
         return F.conv2d(x, self.W, self.b, self.stride, self.pad)
+
+
+class RNN(Layer):
+    def __init__(self, hidden_size, in_size=None):
+        super().__init__()
+
+        self.x2h = Linear(hidden_size, in_size=in_size)
+        self.h2h = Linear(hidden_size, in_size=in_size, nobias=True)
+
+        self.h = None
+
+    def reset_state(self):
+        self.h = None
+
+    def forward(self, x):
+        if self.h is None:
+            h_new = F.tanh(self.x2h(x))
+        else:
+            h_new = F.tanh(self.x2h(x) + self.h2h(self.h))
+
+        self.h = h_new
+        return h_new
+
+
+class LSTM(Layer):
+    def __init__(self, hidden_size, in_size=None):
+        super().__init__()
+
+        H, I = hidden_size, in_size
+
+        self.x_forget = Linear(H, in_size=I)
+        self.x_input = Linear(H, in_size=I)
+        self.x_output = Linear(H, in_size=I)
+        self.x_update = Linear(H, in_size=I)
+
+        self.h_forget = Linear(H, in_size=I, nobias=True)
+        self.h_input = Linear(H, in_size=I, nobias=True)
+        self.h_output = Linear(H, in_size=I, nobias=True)
+        self.h_update = Linear(H, in_size=I, nobias=True)
+
+        self.reset_state()
+
+    def reset_state(self):
+        self.h = None
+        self.c = None
+
+    def forward(self, x):
+        if self.h is None:
+            f = F.sigmoid(self.x_forget(x))
+            i = F.sigmoid(self.x_input(x))
+            o = F.sigmoid(self.x_output(x))
+            u = F.tanh(self.x_update(x))
+
+        else:
+            f = F.sigmoid(self.x_forget(x) + self.h_forget(self.h))
+            i = F.sigmoid(self.x_input(x) + self.h_input(self.h))
+            o = F.sigmoid(self.x_output(x) + self.h_output(self.h))
+            u = F.tanh(self.x_update(x) + self.h_update(self.h))
+
+        if self.c is None:
+            c_new = i * u
+        else:
+            c_new = f * self.c + i * u
+
+        h_new = o * F.tanh(c_new)
+
+        self.h = h_new
+        self.c = c_new
+
+        return h_new

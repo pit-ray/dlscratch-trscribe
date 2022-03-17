@@ -120,6 +120,21 @@ class Variable:
                         for y in f.outputs:
                             y().grad = None  # Remove unused grad
 
+    def unchain(self):
+        self.creator = None
+
+    def unchain_backward(self):
+        if self.creator is None:
+            return
+
+        funcs = [self.creator]
+        while funcs:
+            f = funcs.pop()
+            for x in f.inputs:
+                if x.creator is not None:
+                    funcs.append(x.creator)
+                    x.unchain()
+
     def reshape(self, *shape):
         if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
             shape = shape[0]
@@ -141,6 +156,9 @@ class Variable:
 
     def sum(self, axis=None, keepdims=False):
         return d0.functions.sum(self, axis, keepdims)
+
+    def max(self, axis=None, keepdims=False):
+        return d0.functions.max(self, axis, keepdims)
 
     def to_cpu(self):
         if self.data is not None:

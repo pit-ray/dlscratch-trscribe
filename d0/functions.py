@@ -499,5 +499,23 @@ def dropout(x, drop_ratio=0.5):
     return x
 
 
+class Max(Function):
+    def __init__(self, axis=None, keepdims=False):
+        self.axis = axis
+        self.keepdims = keepdims
+
+    def forward(self, x):
+        y = x.max(axis=self.axis, keepdims=self.keepdims)
+        return y
+
+    def backward(self, gy):
+        raise NotImplementedError()
+        return gy
+
+
+def max(x, axis=None, keepdims=False):
+    return Max(axis, keepdims)(x)
+
+
 from d0.im2col import im2col
 from d0.conv import conv2d, max_pool2d

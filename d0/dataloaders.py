@@ -56,3 +56,40 @@ class DataLoader:
 
     def to_gpu(self):
         self.gpu = True
+
+
+class SeqDataLoader(DataLoader):
+    def __init__(self, dataset, batch_size, gpu=False):
+        super().__init__(
+                dataset=dataset,
+                batch_size=batch_size,
+                shuffle=False,
+                gpu=gpu)
+
+    def __next__(self):
+        if self.iteration >= self.max_iter:
+            self.reset()
+            raise StopIteration()
+
+        jump = self.data_size // self.batch_size
+
+        i, N = self.iteration, self.batch_size
+
+        # b * jump : start position of each batch
+        # If the batch like this.
+        # |#####, #####, ###|
+        #  01234  56789  abc
+        #
+        # It returns mod-based index.
+        # |#####, #####, #####|
+        #  01234  56789  abc01
+        batch_index = [(b * jump + i) % self.data_size for b in range(N)]
+        batch = [self.dataset[i] for i in batch_index]
+
+        xp = cuda.cupy if self.gpu else np
+        x = xp.array([example[0] for example in batch])
+        t = xp.array([example[1] for example in batch])
+
+        self.iteration += 1
+
+        return x, t
